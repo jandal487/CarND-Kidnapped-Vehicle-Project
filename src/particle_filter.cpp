@@ -164,8 +164,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    *   (look at equation 3.33) http://planning.cs.uiuc.edu/node99.html
    */
 
-  double weight_normalizer = 0.0; // To normalize weights of all particles
-
   for (int i = 0; i < num_particles; i++) {
     double particle_x = particles[i].x;
     double particle_y = particles[i].y;
@@ -175,11 +173,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     vector<LandmarkObs> transformed_obs;
 	unsigned int nObservations = observations.size();
     for (unsigned int j = 0; j < nObservations; j++) {
-      LandmarkObs transformed_obs;
-      transformed_obs.id = j;
-      transformed_obs.x = particle_x + (cos(particle_theta) * observations[j].x) - (sin(particle_theta) * observations[j].y);
-      transformed_obs.y = particle_y + (sin(particle_theta) * observations[j].x) + (cos(particle_theta) * observations[j].y);
-      transformed_obs.push_back(transformed_obs);
+      LandmarkObs transf_obs;
+      transf_obs.id = j;
+      transf_obs.x = particle_x + (cos(particle_theta) * observations[j].x) - (sin(particle_theta) * observations[j].y);
+      transf_obs.y = particle_y + (sin(particle_theta) * observations[j].x) + (cos(particle_theta) * observations[j].y);
+      transformed_obs.push_back(transf_obs);
     }
 
     /*Step 2: Keep landmarks which are in the sensor_range of current particle.*/
@@ -200,14 +198,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     /*Step 3: Associate observations with predicted landmarks */
     dataAssociation(predicted_landmarks, transformed_obs);
 
-    /*Step 4: Update weight of each particle using Multivariate Gaussian distribution.*/
+    /*Step 4: Update weight of each particle */
     particles[i].weight = 1.0; // Reset the weight of particle to 1.0
 
     double sigma_x = std_landmark[0];
     double sigma_y = std_landmark[1];
     double sigma_x_2 = pow(sigma_x, 2);
     double sigma_y_2 = pow(sigma_y, 2);
-    double normalizer = (1.0/(2.0 * M_PI * sigma_x * sigma_y));
     
     //Calculate weight of each particle
 	unsigned int nTransformedObs = transformed_obs.size();
@@ -219,27 +216,26 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
       double multi_prob = 1.0;
 
       for (unsigned int l = 0; l < nPredLandmarks; l++) {
-        double pred_landmark_x = predicted_landmarks[l].x;
-        double pred_landmark_y = predicted_landmarks[l].y;
+		double pred_landmark_x, pred_landmark_y;
+		double normalizer, gaussian_term1, gaussian_term2, meas_weight;
+		
         double pred_landmark_id = predicted_landmarks[l].id;
-
+		
         if (trans_obs_id == pred_landmark_id) {
-          multi_prob = normalizer * exp(-1.0 * ((pow((trans_obs_x - pred_landmark_x), 2)/(2.0 * sigma_x_2)) + 
-                                                (pow((trans_obs_y - pred_landmark_y), 2)/(2.0 * sigma_y_2))));
-          particles[i].weight *= multi_prob;
+			pred_landmark_x = predicted_landmarks[l].x;
+			pred_landmark_y = predicted_landmarks[l].y;
         }
+		
+		// calculate weight
+		normalizer = (1.0/(2.0 * M_PI * sigma_x * sigma_y));
+		gaussian_term1 = pow((trans_obs_x - pred_landmark_x), 2)/(2.0 * sigma_x_2);
+		gaussian_term2 = pow((trans_obs_y - pred_landmark_y), 2)/(2.0 * sigma_y_2);
+		meas_weight = normalizer * exp(-1.0 * (gaussian_term1 + gaussian_term2));
+		
+		particles[i].weight *= meas_weight;
       }
     }
-    weight_normalizer += particles[i].weight;
   }
-
-  /*Step 5: Normalize the weights of all particles */
-  unsigned int nParticles = particles.size();
-  for (unsigned int i = 0; i < nParticles; i++) {
-    particles[i].weight /= weight_normalizer;
-    weights[i] = particles[i].weight;
-  }
-
 }
 
 void ParticleFilter::resample() {
@@ -257,15 +253,15 @@ void ParticleFilter::resample() {
   uniform_int_distribution<int> particle_index(0, num_particles - 1);
   int current_index = particle_index(gen);
   
+  double max_weight_2 = 2.0 * *max_element(weights.begin(), weights.end());
+  uniform_real_distribution<double> random_weight(0.0, max_weight_2);
+  
   double beta = 0.0;
   
-  double max_weight_2 = 2.0 * *max_element(weights.begin(), weights.end());
-  
   vector<Particle> resampled_particles;
-  
-  for (int i = 0; i < particles.size(); i++) {
-    uniform_real_distribution<double> random_weight(0.0, max_weight_2);
-    beta += random_weight(gen);
+  unsigned int nParticles = particles.size();
+  for (int i = 0; i < nParticles; i++) {
+    beta += random_weight(gen) * 2.0;
     
     while (beta > weights[current_index]) {
       beta -= weights[current_index];
@@ -288,11 +284,6 @@ Particle ParticleFilter::SetAssociations(Particle& particle,
   // associations: The landmark id that goes along with each listed association
   // sense_x: the associations x mapping already converted to world coordinates
   // sense_y: the associations y mapping already converted to world coordinates
-  
-  // Clear the previous associations
-  particle.associations.clear();
-  particle.sense_x.clear();
-  particle.sense_y.clear();
   
   particle.associations = associations;
   particle.sense_x = sense_x;
