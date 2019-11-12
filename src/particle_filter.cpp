@@ -248,11 +248,14 @@ void ParticleFilter::resample() {
   
   // Create a generator to be used for generating random particle index and beta value
   default_random_engine gen;
-  
-  // Generate random particle index
+
   uniform_int_distribution<int> particle_index(0, num_particles - 1);
   int current_index = particle_index(gen);
   
+  vector<double> weights;
+  for (int i = 0; i < num_particles; i++) {
+	  weights.push_back(particles[i].weight);
+  }
   double max_weight_2 = 2.0 * *max_element(weights.begin(), weights.end());
   uniform_real_distribution<double> random_weight(0.0, max_weight_2);
   
