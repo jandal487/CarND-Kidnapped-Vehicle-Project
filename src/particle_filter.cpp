@@ -182,7 +182,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
     // Step 2: Transform the coordinates
     vector<LandmarkObs> mapped_obs;
-	unsigned int nObservations = observations.size();
+    unsigned int nObservations = observations.size();
     for(unsigned int j = 0; j < nObservations; j++) {
       double xx = cos(theta)*observations[j].x - sin(theta)*observations[j].y + x;
       double yy = sin(theta)*observations[j].x + cos(theta)*observations[j].y + y;
@@ -193,29 +193,29 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     dataAssociation(inRangeLandmarks, mapped_obs);
 
     // Step 4: Calculate weights.
-	particles[i].weight = 1.0; // reseting the weight
-	double s_x = std_landmark[0];
-	double s_y = std_landmark[1];
-	// Iterate each measurement "taken" by the particle
-	for (unsigned int j = 0; j < mapped_obs.size(); j++) {
-	  double obs_X = mapped_obs[j].x;
-	  double obs_Y = mapped_obs[j].y;
-	  double x_l,y_l;
+    particles[i].weight = 1.0; // reseting the weight
+    double s_x = std_landmark[0];
+    double s_y = std_landmark[1];
+    // Iterate each measurement "taken" by the particle
+    for (unsigned int j = 0; j < mapped_obs.size(); j++) {
+      double obs_X = mapped_obs[j].x;
+      double obs_Y = mapped_obs[j].y;
+      double x_l,y_l;
       
-	  unsigned int nLandmarks = inRangeLandmarks.size();
-	  for (unsigned int k = 0; k < nLandmarks; k++) {
-	    if (inRangeLandmarks[k].id == mapped_obs[j].id) {
-	      x_l = inRangeLandmarks[k].x;
-	      y_l = inRangeLandmarks[k].y;
-	    }
-	  }
-	  
-	  //calculate measurement weight
-	  double normalizer = (1/(2 * M_PI * s_x * s_y));
-	  double gaussian_term1 = pow(obs_X - x_l,2)/(2*pow(s_x, 2));
-	  double gaussian_term2 = pow(obs_X - y_l,2)/(2*pow(s_y, 2));
-	  double meas_w = normalizer * exp( -( gaussian_term1 + gaussian_term2 ) );
-	  
+      unsigned int nLandmarks = inRangeLandmarks.size();
+      for (unsigned int k = 0; k < nLandmarks; k++) {
+        if (inRangeLandmarks[k].id == mapped_obs[j].id) {
+          x_l = inRangeLandmarks[k].x;
+          y_l = inRangeLandmarks[k].y;
+        }
+      }
+  
+      //calculate measurement weight
+      double normalizer = (1/(2 * M_PI * s_x * s_y));
+      double gaussian_term1 = pow(obs_X - x_l,2)/(2*pow(s_x, 2));
+      double gaussian_term2 = pow(obs_X - y_l,2)/(2*pow(s_y, 2));
+      double meas_w = normalizer * exp( -( gaussian_term1 + gaussian_term2 ) );
+
       if (meas_w == 0) {
         particles[i].weight *= 0.0001;
       } else {
@@ -238,7 +238,7 @@ void ParticleFilter::resample() {
   
   vector<double> weights;
   for (int i = 0; i < num_particles; i++) {
-	  weights.push_back(particles[i].weight);
+      weights.push_back(particles[i].weight);
   }
   double max_weight = *max_element(weights.begin(), weights.end());
   
@@ -274,6 +274,11 @@ Particle ParticleFilter::SetAssociations(Particle& particle,
   // sense_x: the associations x mapping already converted to world coordinates
   // sense_y: the associations y mapping already converted to world coordinates
   
+  //Clear the previous associations
+  particle.associations.clear();
+  particle.sense_x.clear();
+  particle.sense_y.clear();
+	
   particle.associations = associations;
   particle.sense_x = sense_x;
   particle.sense_y = sense_y;
